@@ -11,8 +11,6 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.*;
 
-import static com.jummania.Utils.annotatedClassNames;
-
 public class MyProcessor extends AbstractProcessor {
 
     private final Set<String> types = new HashSet<>();
@@ -23,13 +21,6 @@ public class MyProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 
-        Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(Serializable.class);
-        for (Element element : elements) {
-            if (element.getKind() == ElementKind.CLASS) {
-                annotatedClassNames.add((TypeElement) element);
-            }
-        }
-
         int packSize;
 
         List<String> imports = new ArrayList<>(3);
@@ -38,7 +29,7 @@ public class MyProcessor extends AbstractProcessor {
         imports.add("com.jummania.reader.Reader");
         imports.add("java.io.IOException");
 
-        for (Element element : elements) {
+        for (Element element : roundEnv.getElementsAnnotatedWith(Serializable.class)) {
 
             if (element.getKind() == ElementKind.CLASS) {
 

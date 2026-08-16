@@ -12,8 +12,9 @@ public final class Parser {
     private final Deserializer deserializer = new Deserializer();
     ByteWriter sb = new ByteWriter();
 
-    void main() throws Throwable {
+    public static void main(String[] args) throws Throwable {
 
+        /*
         //GeneratedSerializers.serialize(new TT(), sb);
 
         System.out.println(sb.toHexString());
@@ -26,6 +27,8 @@ public final class Parser {
         for (int i = 0; i < 3; i++) {
             parse(company);
         }
+
+         */
 
     }
 

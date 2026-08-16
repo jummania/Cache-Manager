@@ -4,13 +4,10 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
-import java.util.HashSet;
-import java.util.Set;
 
 import static javax.lang.model.type.TypeKind.ARRAY;
 
 class Utils {
-    static final Set<TypeElement> annotatedClassNames = new HashSet<>();
 
     static boolean vyTypeMirror(ProcessingEnvironment processingEnv, TypeMirror typeMirror, CharSequence name) {
         if (typeMirror == null) return false;
@@ -31,15 +28,6 @@ class Utils {
     public static boolean isMap(ProcessingEnvironment processingEnv, TypeMirror typeMirror, String fieldType) {
         if (fieldType.startsWith("java.util.Map")) return true;
         return vyTypeMirror(processingEnv, typeMirror, "java.util.Map");
-    }
-
-    static boolean hasClass(String fieldType) {
-        for (TypeElement annotatedElement : annotatedClassNames) {
-            if (annotatedElement.getQualifiedName().toString().equals(fieldType)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     static boolean isArray(TypeMirror typeMirror, String fieldType) {
@@ -77,7 +65,7 @@ class Utils {
         return null;
     }
 
-    public static TypeMirror[] getTypeArguments(TypeMirror typeMirror) {
+    static TypeMirror[] getTypeArguments(TypeMirror typeMirror) {
         if (typeMirror instanceof javax.lang.model.type.DeclaredType declaredType) {
             java.util.List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
             if (!typeArguments.isEmpty()) {
@@ -85,5 +73,14 @@ class Utils {
             }
         }
         return new TypeMirror[0];
+    }
+
+    static boolean hasSerializableAnnotation(ProcessingEnvironment processingEnv, TypeMirror typeMirror) {
+        Element element = processingEnv.getTypeUtils().asElement(typeMirror);
+        if (element instanceof TypeElement typeElement) {
+            return typeElement.getAnnotation(Serializable.class) != null;
+        }
+
+        return false;
     }
 }

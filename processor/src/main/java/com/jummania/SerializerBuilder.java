@@ -213,7 +213,7 @@ class SerializerBuilder {
             builder.append(space).append(className).append(" ").append(fieldName).append(" = ").append(currentAccessor).append(";\n");
         }
 
-        if (hasClass(fieldType)) {
+        if (hasSerializableAnnotation(processingEnv, typeMirror)) {
             if (className == null) className = getNormalizedTypeName(typeMirror);
             builder.append(space).append(className).append("_.").append("serialize(").append(fieldName).append(", writer);\n");
             return true;

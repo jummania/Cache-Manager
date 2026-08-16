@@ -224,7 +224,7 @@ class DeSerializer {
             builder.append(space).append(className).append(" ").append(fieldName).append(" = new ");
         }
 
-        if (hasClass(fieldType)) {
+        if (hasSerializableAnnotation(processingEnv, typeMirror)) {
             if (className == null) className = getNormalizedTypeName(typeMirror);
             builder.append(space).append(className).append("_.").append("deSerializer(").append("reader);\n");
             return true;
