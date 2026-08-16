@@ -11,20 +11,16 @@ import java.util.Collection;
 public final class Serializer2 {
 
     public void serialize(Object obj, Writer writer) throws Throwable {
-        if (obj == null) {
-            return;
-        }
-        serialize(obj, obj.getClass(), writer);
+        if (obj == null) writer.writeByte((byte) 0);
+        else serialize(obj, obj.getClass(), writer);
     }
 
     void serialize(Object obj, Type type, Writer writer) throws Throwable {
 
-        if (obj == null) {
-            return;
-        }
+        if (obj == null) writer.writeByte((byte) 0);
 
-        // Collection<T>
-        if (type instanceof ParameterizedType parameterizedType) {
+            // Collection<T>
+        else if (type instanceof ParameterizedType parameterizedType) {
             Type rawType = parameterizedType.getRawType();
 
             if (rawType instanceof Class<?> rawClass && Collection.class.isAssignableFrom(rawClass)) {
@@ -34,9 +30,6 @@ public final class Serializer2 {
                 Type itemType = parameterizedType.getActualTypeArguments()[0];
 
                 for (Object item : collection) {
-                    if (item == null) {
-                        throw new IllegalStateException("Null collection item not supported");
-                    }
                     serialize(item, itemType, writer);
                 }
                 return;
@@ -72,7 +65,6 @@ public final class Serializer2 {
         // Object
         FastCache2.FieldCacheMap cache = FastCache2.get(clazz);
         byte[] kinds = cache.kinds();
-        Type[] types = cache.types();
         int size = kinds.length;
 
         for (int i = 0; i < size; i++) {
@@ -90,9 +82,7 @@ public final class Serializer2 {
                 case FastCache2.STRING -> writer.writeString((String) cache.getters()[i].invokeExact(obj));
                 default -> {
                     Object value = cache.getters()[i].invokeExact(obj);
-                    if (value != null) {
-                        serialize(value, cache.types()[i], writer);
-                    }
+                    serialize(value, cache.types()[i], writer);
                 }
             }
 
