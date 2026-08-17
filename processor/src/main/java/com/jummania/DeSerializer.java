@@ -14,15 +14,17 @@ import static com.jummania.Utils.*;
 class DeSerializer {
     private final Set<String> types;
     private final Set<String> names = new HashSet<>();
+    private final ProcessingEnvironment processingEnv;
     private final StringBuilder builder;
     private int i = 0;
 
-    DeSerializer(StringBuilder stringBuilder, Set<String> types) {
+    DeSerializer(ProcessingEnvironment processingEnv, StringBuilder stringBuilder, Set<String> types) {
+        this.processingEnv = processingEnv;
         this.builder = stringBuilder;
         this.types = types;
     }
 
-    void read(ProcessingEnvironment processingEnv, TypeElement element, String parentAccessor, int spaceCount) {
+    void read(TypeElement element, String parentAccessor, int spaceCount) {
         for (Element enclosed : element.getEnclosedElements()) {
             if (enclosed.getKind() == ElementKind.FIELD) {
 
@@ -133,7 +135,9 @@ class DeSerializer {
             builder.append(componentType).append("[reader.readInt()];\n");
         } else builder.append(" ArrayList(reader.readInt());\n");
 
-        builder.append(doubleSpace).append("for (int i = 0; i < ").append(fieldName).append(isArray ? ".length" : ".size()").append("; i++) {\n");
+        String loopName = "i" + ++i;
+
+        builder.append(doubleSpace).append("for (int ").append(loopName).append(" = 0; ").append(loopName).append(" < ").append(fieldName).append(isArray ? ".length" : ".size()").append("; ").append(loopName).append("++) {\n");
         String readPrimitive = readPrimitive(componentType);
 
         if (readPrimitive == null) {
@@ -142,7 +146,7 @@ class DeSerializer {
             }
         } else {
             builder.append(fieldName);
-            if (isArray) builder.append("[i] = ");
+            if (isArray) builder.append("[").append(loopName).append("] = ");
             else builder.append(".add(");
             builder.append(readPrimitive);
         }
@@ -179,7 +183,7 @@ class DeSerializer {
         String doubleSpace = space(spaceCount);
         String tripleSpace = space(spaceCount + 1);
 
-        writeCheck(fieldName, false, space, doubleSpace);
+        readCheck(fieldName, doubleSpace);
 
         types.add("java.util.Map.Entry");
         builder.append(doubleSpace).append("for (Entry<").append(normalKey).append(", ").append(normalVal).append("> ").append(entryVar).append(" : ").append(fieldName).append(".entrySet()) {\n");
@@ -207,12 +211,21 @@ class DeSerializer {
 
     boolean writeAny(TypeMirror typeMirror, ProcessingEnvironment processingEnv, String currentAccessor, String fieldName, String fieldType, int spaceCount) {
 
-        if (currentAccessor == null) currentAccessor = fieldName;
-        else currentAccessor = currentAccessor + "." + fieldName;
+        boolean wasNull = currentAccessor == null;
+        if (wasNull) currentAccessor = fieldName;
+        else currentAccessor = currentAccessor + fieldName;
+
+        System.out.println(currentAccessor);
 
         String space = space(++spaceCount);
 
-        if (readPrimitive(fieldName, fieldType, space)) return true;
+        if (!wasNull) {
+            String read = readPrimitive(fieldType);
+            if (read != null) {
+                builder.append(space).append(currentAccessor).append(" = ").append(read).append(";\n");
+                return true;
+            }
+        } else if (readPrimitive(currentAccessor, fieldType, space)) return true;
 
         String className = null;
 
@@ -253,9 +266,9 @@ class DeSerializer {
 
         TypeElement element = getNestedTypeElement(processingEnv, fieldType);
         if (element != null) {
-            writeCheck(null, false, space, space(spaceCount + 1));
-            read(processingEnv, element, fieldName, spaceCount);
-            builder.append(space).append("}\n");
+            readCheck(null, space(spaceCount + 1));
+            System.out.println(fieldName);
+            read(element, fieldName, spaceCount);
             return true;
         }
 
@@ -311,12 +324,9 @@ class DeSerializer {
         }
     }
 
-    private void writeCheck(String fieldName, boolean isArray, String singleSpace, String doubleSpace) {
+    private void readCheck(String fieldName, String doubleSpace) {
         boolean isObject = fieldName == null;
-        String write = isObject ? "Byte((byte) " : "Int(";
-        builder.append("writer.write").append(write).append("0);\n");
-        builder.append(singleSpace).append("else {\n").append(doubleSpace).append("writer.write").append(write);
-        if (!isObject) builder.append(fieldName);
-        builder.append(isObject ? "1" : isArray ? ".length" : ".size()").append(");\n");
+        String write = isObject ? "Byte(" : "Int(";
+        builder.append(doubleSpace).append("if (reader.read").append(write).append(") == 0) continue;\n");
     }
 }

@@ -15,8 +15,6 @@ public class MyProcessor extends AbstractProcessor {
 
     private final Set<String> types = new HashSet<>();
     StringBuilder stringBuilder = new StringBuilder();
-    SerializerBuilder serializerBuilder = new SerializerBuilder(stringBuilder, types);
-    DeSerializer deSerializer = new DeSerializer(stringBuilder, types);
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -28,6 +26,9 @@ public class MyProcessor extends AbstractProcessor {
         imports.add("com.jummania.writer.Writer");
         imports.add("com.jummania.reader.Reader");
         imports.add("java.io.IOException");
+
+        SerializerBuilder serializerBuilder = new SerializerBuilder(processingEnv, stringBuilder, types);
+        DeSerializer deSerializer = new DeSerializer(processingEnv, stringBuilder, types);
 
         for (Element element : roundEnv.getElementsAnnotatedWith(Serializable.class)) {
 
@@ -47,13 +48,14 @@ public class MyProcessor extends AbstractProcessor {
                 stringBuilder.append("        if (").append(varName).append(" == null) writer.writeByte((byte) 0);\n").append("        else {\n");
                 stringBuilder.append("            writer.writeByte((byte) 1);\n");
                 TypeElement typeElement = (TypeElement) element;
-                serializerBuilder.write(processingEnv, typeElement, varName, 2);
+                serializerBuilder.write(typeElement, varName, 2);
 
                 stringBuilder.append("        }\n\n");
                 stringBuilder.append("    }\n\n");
 
                 stringBuilder.append("    public static ").append("void").append(" deSerializer(").append("Reader reader) throws IOException {\n");
-                deSerializer.read(processingEnv, typeElement, varName, 1);
+                stringBuilder.append("        if (").append("reader.readByte() == 0) return;\n\n");
+                deSerializer.read(typeElement, null, 1);
 
                 stringBuilder.append("    }\n\n");
                 stringBuilder.append("}\n");

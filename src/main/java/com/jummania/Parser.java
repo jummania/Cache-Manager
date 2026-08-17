@@ -189,7 +189,7 @@ public final class Parser {
         public List<Employee> employees;
     }
 
-    @Serializable
+
     public static class Department {
 
         //  List<Department> list = new LinkedList<>();
@@ -259,4 +259,6 @@ public final class Parser {
             public int id;
         }
     }
+
+
 }

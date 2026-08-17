@@ -15,14 +15,16 @@ class SerializerBuilder {
     private final Set<String> types;
     private final Set<String> names = new HashSet<>();
     private final StringBuilder builder;
+    private final ProcessingEnvironment processingEnv;
     private int i = 0;
 
-    SerializerBuilder(StringBuilder stringBuilder, Set<String> types) {
+    SerializerBuilder(ProcessingEnvironment processingEnv, StringBuilder stringBuilder, Set<String> types) {
+        this.processingEnv = processingEnv;
         this.builder = stringBuilder;
         this.types = types;
     }
 
-    void write(ProcessingEnvironment processingEnv, TypeElement element, String parentAccessor, int spaceCount) {
+    void write(TypeElement element, String parentAccessor, int spaceCount) {
         for (Element enclosed : element.getEnclosedElements()) {
             if (enclosed.getKind() == ElementKind.FIELD) {
 
@@ -119,7 +121,7 @@ class SerializerBuilder {
         return false;
     }
 
-    void writeArray(TypeMirror typeMirror, ProcessingEnvironment processingEnv, String fieldName, String explicitComponentType, int spaceCount) {
+    void writeArray(TypeMirror typeMirror, String fieldName, String explicitComponentType, int spaceCount) {
         String componentType;
         TypeMirror componentTypeMirror;
 
@@ -149,7 +151,7 @@ class SerializerBuilder {
 
     }
 
-    void writeMap(TypeMirror typeMirror, ProcessingEnvironment processingEnv, String fieldName, int spaceCount) {
+    void writeMap(TypeMirror typeMirror, String fieldName, int spaceCount) {
         TypeMirror[] typeArgs = getTypeArguments(typeMirror);
 
         TypeMirror keyTypeMirror = typeArgs[0];
@@ -226,24 +228,24 @@ class SerializerBuilder {
             TypeMirror componentTypeMirror = arrayType.getComponentType();
             String componentType = componentTypeMirror.toString();
 
-            writeArray(componentTypeMirror, processingEnv, fieldName, componentType, spaceCount);
+            writeArray(componentTypeMirror, fieldName, componentType, spaceCount);
             return true;
         }
 
         if (isMap(processingEnv, typeMirror, fieldType)) {
-            writeMap(typeMirror, processingEnv, fieldName, spaceCount);
+            writeMap(typeMirror, fieldName, spaceCount);
             return true;
         }
 
         if (isCollection(processingEnv, typeMirror, fieldType)) {
-            writeArray(typeMirror, processingEnv, fieldName, null, spaceCount);
+            writeArray(typeMirror, fieldName, null, spaceCount);
             return true;
         }
 
         TypeElement element = getNestedTypeElement(processingEnv, fieldType);
         if (element != null) {
             writeCheck(null, false, space, space(spaceCount + 1));
-            write(processingEnv, element, fieldName, spaceCount);
+            write(element, fieldName, spaceCount);
             builder.append(space).append("}\n");
             return true;
         }
