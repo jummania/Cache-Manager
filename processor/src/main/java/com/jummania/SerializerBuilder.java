@@ -24,7 +24,7 @@ class SerializerBuilder {
         this.types = types;
     }
 
-    void write(TypeElement element, String parentAccessor, int spaceCount) {
+    void write(TypeElement element, String parentAccessor, int spaceCount, boolean isNested) {
         for (Element enclosed : element.getEnclosedElements()) {
             if (enclosed.getKind() == ElementKind.FIELD) {
 
@@ -34,7 +34,7 @@ class SerializerBuilder {
                 TypeMirror typeMirror = field.asType();
                 String fieldType = typeMirror.toString();
 
-                if (!writeAny(typeMirror, processingEnv, parentAccessor, fieldName, fieldType, spaceCount)) {
+                if (!writeAny(typeMirror, parentAccessor, fieldName, fieldType, spaceCount, isNested)) {
                     throw new RuntimeException("Unknown type: " + fieldType);
                 }
             }
@@ -142,7 +142,7 @@ class SerializerBuilder {
         String itemVar = getFieldName(fieldName);
         builder.append(doubleSpace).append("for (").append(getNormalizedTypeName(componentTypeMirror)).append(" ").append(itemVar).append(" : ").append(fieldName).append(") {\n");
 
-        if (!writeAny(componentTypeMirror, processingEnv, null, itemVar, componentType, spaceCount)) {
+        if (!writeAny(componentTypeMirror, null, itemVar, componentType, spaceCount, true)) {
             throw new RuntimeException("Unknown component type: " + componentType);
         }
 
@@ -180,14 +180,14 @@ class SerializerBuilder {
 
         if (!writePrimitive(entryVar + ".getKey()", keyType, tripleSpace)) {
             builder.append(tripleSpace).append(normalKey).append(" ").append(keyVar).append(" = ").append(entryVar).append(".getKey();\n");
-            if (!writeAny(keyTypeMirror, processingEnv, null, keyVar, keyType, spaceCount)) {
+            if (!writeAny(keyTypeMirror, null, keyVar, keyType, spaceCount, true)) {
                 throw new RuntimeException("Unknown map key type: " + keyType);
             }
         }
 
         if (!writePrimitive(entryVar + ".getValue()", valType, tripleSpace)) {
             builder.append(tripleSpace).append(normalVal).append(" ").append(valVar).append(" = ").append(entryVar).append(".getValue();\n");
-            if (!writeAny(valTypeMirror, processingEnv, null, valVar, valType, spaceCount)) {
+            if (!writeAny(valTypeMirror, null, valVar, valType, spaceCount, true)) {
                 throw new RuntimeException("Unknown map value type: " + valType);
             }
         }
@@ -196,7 +196,7 @@ class SerializerBuilder {
         builder.append(space).append("}\n");
     }
 
-    boolean writeAny(TypeMirror typeMirror, ProcessingEnvironment processingEnv, String currentAccessor, String fieldName, String fieldType, int spaceCount) {
+    boolean writeAny(TypeMirror typeMirror, String currentAccessor, String fieldName, String fieldType, int spaceCount, boolean isNested) {
 
         if (currentAccessor == null) currentAccessor = fieldName;
         else currentAccessor = currentAccessor + "." + fieldName;
@@ -207,8 +207,8 @@ class SerializerBuilder {
 
         String className = null;
 
-        if (!names.contains(fieldName)) {
-            fieldName = fieldName + i++;
+        if (!isNested || !names.contains(fieldName)) {
+            if (isNested) fieldName += i++;
             names.add(fieldName);
             builder.append("\n");
             className = getNormalizedTypeName(typeMirror);
@@ -245,7 +245,7 @@ class SerializerBuilder {
         TypeElement element = getNestedTypeElement(processingEnv, fieldType);
         if (element != null) {
             writeCheck(null, false, space, space(spaceCount + 1));
-            write(element, fieldName, spaceCount);
+            write(element, fieldName, spaceCount, true);
             builder.append(space).append("}\n");
             return true;
         }

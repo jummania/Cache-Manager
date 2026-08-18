@@ -34,7 +34,7 @@ class DeSerializer {
                 TypeMirror typeMirror = field.asType();
                 String fieldType = typeMirror.toString();
 
-                if (!writeAny(typeMirror, processingEnv, parentAccessor, fieldName, fieldType, spaceCount)) {
+                if (!writeAny(typeMirror, parentAccessor, fieldName, fieldType, spaceCount, false)) {
                     throw new RuntimeException("Unknown type for reading: " + fieldType);
                 }
             }
@@ -114,7 +114,7 @@ class DeSerializer {
         return false;
     }
 
-    void readArray(TypeMirror typeMirror, ProcessingEnvironment processingEnv, String fieldName, String explicitComponentType, int spaceCount) {
+    void readArray(TypeMirror typeMirror, String fieldName, String explicitComponentType, int spaceCount, boolean isNested) {
         String componentType;
         TypeMirror componentTypeMirror;
 
@@ -132,8 +132,8 @@ class DeSerializer {
         String doubleSpace = space(spaceCount);
         types.add("java.util.ArrayList");
         if (isArray) {
-            builder.append(componentType).append("[reader.readInt()];\n");
-        } else builder.append(" ArrayList(reader.readInt());\n");
+            builder.append(getNormalizedTypeName(typeMirror)).append("[reader.readInt()];\n");
+        } else builder.append("ArrayList(reader.readInt());\n");
 
         String loopName = "i" + ++i;
 
@@ -141,7 +141,7 @@ class DeSerializer {
         String readPrimitive = readPrimitive(componentType);
 
         if (readPrimitive == null) {
-            if (!writeAny(componentTypeMirror, processingEnv, null, fieldName, componentType, spaceCount + 1)) {
+            if (!writeAny(componentTypeMirror, null, fieldName, componentType, spaceCount + 1, true)) {
                 throw new RuntimeException("Unknown component type for reading: " + componentType);
             }
         } else {
@@ -149,9 +149,10 @@ class DeSerializer {
             if (isArray) builder.append("[").append(loopName).append("] = ");
             else builder.append(".add(");
             builder.append(readPrimitive);
+            builder.append(isArray ? ";\n" : ");\n");
         }
 
-        builder.append(isArray ? ";\n" : ");\n");
+
         //   builder.append()
 
         // String itemVar = getFieldName(fieldName);
@@ -159,9 +160,13 @@ class DeSerializer {
 
 
         builder.append(space).append("}\n");
+        if (isNested) {
+            //  builder.append()
+        }
+
     }
 
-    void writeMap(TypeMirror typeMirror, ProcessingEnvironment processingEnv, String fieldName, int spaceCount) {
+    void writeMap(TypeMirror typeMirror, String fieldName, int spaceCount) {
         TypeMirror[] typeArgs = getTypeArguments(typeMirror);
 
         TypeMirror keyTypeMirror = typeArgs[0];
@@ -183,33 +188,38 @@ class DeSerializer {
         String doubleSpace = space(spaceCount);
         String tripleSpace = space(spaceCount + 1);
 
-        readCheck(fieldName, doubleSpace);
+        builder.append("HashMap(reader.readInt());\n");
+        // readCheck(fieldName, doubleSpace);
 
+        types.add("java.util.HashMap");
         types.add("java.util.Map.Entry");
-        builder.append(doubleSpace).append("for (Entry<").append(normalKey).append(", ").append(normalVal).append("> ").append(entryVar).append(" : ").append(fieldName).append(".entrySet()) {\n");
 
-        /*
-        if (!readPrimitive(false, entryVar + ".getKey()", keyType, tripleSpace)) {
-            builder.append(tripleSpace).append(normalKey).append(" ").append(keyVar).append(" = ").append(entryVar).append(".getKey();\n");
-            if (!writeAny(keyTypeMirror, processingEnv, null, keyVar, keyType, spaceCount)) {
+
+        String readPrimitive = readPrimitive(keyType);
+
+        if (readPrimitive == null) {
+            if (!writeAny(keyTypeMirror, null, keyVar, keyType, spaceCount, true)) {
                 throw new RuntimeException("Unknown map key type: " + keyType);
             }
+        } else {
+
         }
 
-        if (!readPrimitive(false, entryVar + ".getValue()", valType, tripleSpace)) {
+
+        readPrimitive = readPrimitive(valType);
+        if (readPrimitive == null) {
             builder.append(tripleSpace).append(normalVal).append(" ").append(valVar).append(" = ").append(entryVar).append(".getValue();\n");
-            if (!writeAny(valTypeMirror, processingEnv, null, valVar, valType, spaceCount)) {
+            if (!writeAny(valTypeMirror, null, valVar, valType, spaceCount, true)) {
                 throw new RuntimeException("Unknown map value type: " + valType);
             }
         }
 
-         */
 
-        builder.append(doubleSpace).append("}\n");
-        builder.append(space).append("}\n");
+        //  builder.append(doubleSpace).append("}\n");
+        //   builder.append(space).append("}\n");
     }
 
-    boolean writeAny(TypeMirror typeMirror, ProcessingEnvironment processingEnv, String currentAccessor, String fieldName, String fieldType, int spaceCount) {
+    boolean writeAny(TypeMirror typeMirror, String currentAccessor, String fieldName, String fieldType, int spaceCount, boolean isNested) {
 
         boolean wasNull = currentAccessor == null;
         if (wasNull) currentAccessor = fieldName;
@@ -227,18 +237,18 @@ class DeSerializer {
             }
         } else if (readPrimitive(currentAccessor, fieldType, space)) return true;
 
-        String className = null;
+        String className = getNormalizedTypeName(typeMirror);
 
-        if (!names.contains(fieldName)) {
-            fieldName = fieldName + i++;
-            names.add(fieldName);
-            builder.append("\n");
-            className = getNormalizedTypeName(typeMirror);
-            builder.append(space).append(className).append(" ").append(fieldName).append(" = new ");
-        }
+        //   if (names.contains(fieldName)) {
+
+        if (isNested) fieldName = fieldName + i++;
+        names.add(fieldName);
+        builder.append("\n");
+        //  }
+
+        builder.append(space).append(className).append(" ").append(fieldName).append(" = new ");
 
         if (hasSerializableAnnotation(processingEnv, typeMirror)) {
-            if (className == null) className = getNormalizedTypeName(typeMirror);
             builder.append(space).append(className).append("_.").append("deSerializer(").append("reader);\n");
             return true;
         }
@@ -250,17 +260,17 @@ class DeSerializer {
             TypeMirror componentTypeMirror = arrayType.getComponentType();
             String componentType = componentTypeMirror.toString();
 
-            readArray(componentTypeMirror, processingEnv, fieldName, componentType, spaceCount);
+            readArray(componentTypeMirror, fieldName, componentType, spaceCount, isNested);
             return true;
         }
 
         if (isMap(processingEnv, typeMirror, fieldType)) {
-            writeMap(typeMirror, processingEnv, fieldName, spaceCount);
+            writeMap(typeMirror, fieldName, spaceCount);
             return true;
         }
 
         if (isCollection(processingEnv, typeMirror, fieldType)) {
-            readArray(typeMirror, processingEnv, fieldName, null, spaceCount);
+            readArray(typeMirror, fieldName, null, spaceCount, false);
             return true;
         }
 

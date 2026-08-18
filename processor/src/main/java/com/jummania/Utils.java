@@ -26,21 +26,12 @@ class Utils {
     }
 
     public static boolean isMap(ProcessingEnvironment processingEnv, TypeMirror typeMirror, String fieldType) {
-        if (fieldType.startsWith("java.util.Map")) return true;
+        if (fieldType != null && fieldType.startsWith("java.util.Map")) return true;
         return vyTypeMirror(processingEnv, typeMirror, "java.util.Map");
     }
 
     static boolean isArray(TypeMirror typeMirror, String fieldType) {
-        return fieldType.endsWith("[]") || typeMirror.getKind() == ARRAY;
-    }
-
-    public static String getGenericType(String fieldType) {
-        int startIndex = fieldType.indexOf('<');
-        int endIndex = fieldType.lastIndexOf('>');
-        if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-            return fieldType.substring(startIndex + 1, endIndex).trim();
-        }
-        return fieldType;
+        return fieldType != null && fieldType.endsWith("[]") || typeMirror.getKind() == ARRAY;
     }
 
     static TypeElement getNestedTypeElement(ProcessingEnvironment processingEnv, String fieldType) {
@@ -72,7 +63,7 @@ class Utils {
                 return typeArguments.toArray(new TypeMirror[0]);
             }
         }
-        return new TypeMirror[0];
+        throw new IllegalArgumentException();
     }
 
     static boolean hasSerializableAnnotation(ProcessingEnvironment processingEnv, TypeMirror typeMirror) {
