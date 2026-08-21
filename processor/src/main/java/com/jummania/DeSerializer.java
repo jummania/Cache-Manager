@@ -5,6 +5,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -132,7 +133,7 @@ class DeSerializer {
         String doubleSpace = space(spaceCount);
         types.add("java.util.ArrayList");
         if (isArray) {
-            builder.append(getNormalizedTypeName(typeMirror)).append("[reader.readInt()];\n");
+            builder.append(removeArgument(componentTypeMirror)).append("[reader.readInt()];\n");
         } else builder.append("ArrayList(reader.readInt());\n");
 
         String loopName = "i" + ++i;
@@ -161,7 +162,7 @@ class DeSerializer {
 
         builder.append(space).append("}\n");
         if (isNested) {
-            //  builder.append()
+            //   builder.append("sex");
         }
 
     }
@@ -189,29 +190,34 @@ class DeSerializer {
         String tripleSpace = space(spaceCount + 1);
 
         builder.append("HashMap(reader.readInt());\n");
+        builder.append("if(").append(fieldName).append(".size() == 0) continue;\n");
         // readCheck(fieldName, doubleSpace);
 
         types.add("java.util.HashMap");
         types.add("java.util.Map.Entry");
 
 
-        String readPrimitive = readPrimitive(keyType);
+        String readKey = readPrimitive(keyType);
+        String readValue = readPrimitive(valType);
 
-        if (readPrimitive == null) {
-            if (!writeAny(keyTypeMirror, null, keyVar, keyType, spaceCount, true)) {
-                throw new RuntimeException("Unknown map key type: " + keyType);
-            }
+        if (readKey != null && readValue != null) {
+            builder.append(fieldName).append(".put(").append(readKey).append(", ").append(readValue).append(");\n");
         } else {
 
-        }
-
-
-        readPrimitive = readPrimitive(valType);
-        if (readPrimitive == null) {
-            builder.append(tripleSpace).append(normalVal).append(" ").append(valVar).append(" = ").append(entryVar).append(".getValue();\n");
-            if (!writeAny(valTypeMirror, null, valVar, valType, spaceCount, true)) {
-                throw new RuntimeException("Unknown map value type: " + valType);
+            if (readKey == null) {
+                if (!writeAny(keyTypeMirror, null, keyVar, keyType, spaceCount, true)) {
+                    throw new RuntimeException("Unknown map key type: " + keyType);
+                }
             }
+
+
+            if (readValue == null) {
+                builder.append(tripleSpace).append(normalVal).append(" ").append(valVar).append(" = ").append(entryVar).append(".getValue();\n");
+                if (!writeAny(valTypeMirror, null, valVar, valType, spaceCount, true)) {
+                    throw new RuntimeException("Unknown map value type: " + valType);
+                }
+            }
+
         }
 
 
@@ -338,5 +344,12 @@ class DeSerializer {
         boolean isObject = fieldName == null;
         String write = isObject ? "Byte(" : "Int(";
         builder.append(doubleSpace).append("if (reader.read").append(write).append(") == 0) continue;\n");
+    }
+
+
+    private String removeArgument(TypeMirror typeMirror) {
+        Types typeUtils = processingEnv.getTypeUtils();
+        TypeMirror erasedType = typeUtils.erasure(typeMirror);
+        return erasedType.toString(); // আউটপুট: "java.util.List"
     }
 }
